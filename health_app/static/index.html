@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>食事記録・栄養計算</title>
+<style>
+  :root { --fg: #222; --muted: #777; --line: #ddd; --accent: #2e7d32; --bg: #fafafa; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #eee; --muted: #999; --line: #444; --accent: #66bb6a; --bg: #1e1e1e; }
+  }
+  body { font-family: system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; padding: 16px; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; }
+  fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-bottom: 8px; }
+  label { display: flex; flex-direction: column; font-size: 0.85rem; color: var(--muted); gap: 4px; }
+  input, select, button { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+  button { cursor: pointer; background: var(--accent); color: #fff; border: none; }
+  button.secondary { background: none; color: var(--accent); border: 1px solid var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  .total td { font-weight: bold; }
+  .meal { margin-bottom: 16px; }
+  .error { color: #c62828; min-height: 1.2em; }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>食事記録・栄養計算</h1>
+
+  <fieldset>
+    <legend>食事を追加</legend>
+    <div class="row">
+      <label>日付 <input type="date" id="date"></label>
+      <label>食事
+        <select id="mealType">
+          <option value="breakfast">朝食</option>
+          <option value="lunch">昼食</option>
+          <option value="dinner">夕食</option>
+          <option value="snack">間食</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label>食品 <select id="food"></select></label>
+      <label>量 (g) <input type="number" id="grams" min="1" step="1" value="100" style="width:6em"></label>
+      <button type="button" class="secondary" id="addItem">リストに追加</button>
+    </div>
+    <ul id="draftList"></ul>
+    <div class="row">
+      <button type="button" id="saveMeal">この食事を記録する</button>
+      <span class="error" id="error"></span>
+    </div>
+  </fieldset>
+
+  <h2 id="summaryTitle">今日の栄養素</h2>
+  <div id="summary"></div>
+</main>
+
+<script>
+const MEAL_LABELS = { breakfast: "朝食", lunch: "昼食", dinner: "夕食", snack: "間食" };
+const NUTRIENTS = [
+  ["kcal", "エネルギー(kcal)"],
+  ["protein_g", "たんぱく質(g)"],
+  ["fat_g", "脂質(g)"],
+  ["carbs_g", "炭水化物(g)"],
+  ["fiber_g", "食物繊維(g)"],
+  ["sodium_mg", "ナトリウム(mg)"],
+];
+
+const state = { foods: [], draft: [] };
+const $ = (id) => document.getElementById(id);
+
+function todayString() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || "エラーが発生しました");
+  return body;
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+function nutrientCells(nutrients) {
+  return NUTRIENTS.map(([key]) => `<td>${nutrients[key]}</td>`).join("");
+}
+
+function nutrientHeader() {
+  return NUTRIENTS.map(([, label]) => `<th>${label}</th>`).join("");
+}
+
+function renderDraft() {
+  const list = $("draftList");
+  if (state.draft.length === 0) {
+    list.innerHTML = `<li class="empty">まだ食品が追加されていません</li>`;
+    return;
+  }
+  list.innerHTML = state.draft
+    .map((item, i) => `<li>${escapeHtml(item.name)} ${item.grams}g <button type="button" class="secondary" data-remove="${i}">削除</button></li>`)
+    .join("");
+}
+
+async function renderSummary() {
+  const date = $("date").value;
+  const data = await api(`/api/meals?date=${encodeURIComponent(date)}`);
+  $("summaryTitle").textContent = `${date} の栄養素`;
+
+  if (data.meals.length === 0) {
+    $("summary").innerHTML = `<p class="empty">この日の記録はまだありません</p>`;
+    return;
+  }
+
+  const meals = data.meals.map((meal) => `
+    <div class="meal">
+      <strong>${MEAL_LABELS[meal.meal_type]}</strong>
+      <table>
+        <tr><th>食品</th><th>量(g)</th>${nutrientHeader()}</tr>
+        ${meal.items.map((item) => `
+          <tr><td>${escapeHtml(item.name)}</td><td>${item.grams}</td>${nutrientCells(item.nutrients)}</tr>`).join("")}
+        <tr class="total"><td>小計</td><td></td>${nutrientCells(meal.total)}</tr>
+      </table>
+    </div>`).join("");
+
+  $("summary").innerHTML = `
+    ${meals}
+    <h3>1日の合計</h3>
+    <table>
+      <tr>${NUTRIENTS.map(([, label]) => `<th>${label}</th>`).join("")}</tr>
+      <tr class="total">${nutrientCells(data.total)}</tr>
+    </table>`;
+}
+
+async function loadFoods() {
+  state.foods = await api("/api/foods");
+  $("food").innerHTML = state.foods
+    .map((f) => `<option value="${f.id}" data-name="${escapeHtml(f.name)}">${escapeHtml(f.name)}</option>`)
+    .join("");
+}
+
+$("addItem").addEventListener("click", () => {
+  $("error").textContent = "";
+  const grams = Number($("grams").value);
+  if (!(grams > 0)) {
+    $("error").textContent = "量は1g以上で入力してください";
+    return;
+  }
+  const select = $("food");
+  state.draft.push({
+    food_id: Number(select.value),
+    name: select.options[select.selectedIndex].dataset.name,
+    grams,
+  });
+  renderDraft();
+});
+
+$("draftList").addEventListener("click", (event) => {
+  const index = event.target.dataset.remove;
+  if (index === undefined) return;
+  state.draft.splice(Number(index), 1);
+  renderDraft();
+});
+
+$("saveMeal").addEventListener("click", async () => {
+  $("error").textContent = "";
+  if (state.draft.length === 0) {
+    $("error").textContent = "食品を1つ以上追加してください";
+    return;
+  }
+  try {
+    await api("/api/meals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eaten_on: $("date").value,
+        meal_type: $("mealType").value,
+        items: state.draft.map(({ food_id, grams }) => ({ food_id, grams })),
+      }),
+    });
+    state.draft = [];
+    renderDraft();
+    await renderSummary();
+  } catch (err) {
+    $("error").textContent = err.message;
+  }
+});
+
+$("date").addEventListener("change", renderSummary);
+
+(async function init() {
+  $("date").value = todayString();
+  renderDraft();
+  await loadFoods();
+  await renderSummary();
+})();
+</script>
+</body>
+</html>
