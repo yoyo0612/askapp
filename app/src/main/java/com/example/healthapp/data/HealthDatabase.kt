@@ -5,7 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", null, 2) {
+class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", null, 3) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -15,12 +15,30 @@ class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", 
         createFoodTables(db)
         createMealTables(db)
         createBodyTables(db)
+        createExerciseTables(db)
         SEED_FOODS.forEach { food -> db.insertOrThrow("foods", null, food.toContentValues()) }
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         // v1 → v2: 目標値と体重の表を追加
         if (oldVersion < 2) createBodyTables(db)
+        // v2 → v3: 運動記録の表を追加
+        if (oldVersion < 3) createExerciseTables(db)
+    }
+
+    private fun createExerciseTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS exercises (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                performed_on TEXT NOT NULL,
+                name TEXT NOT NULL,
+                minutes REAL NOT NULL CHECK (minutes > 0),
+                kcal REAL NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_exercises_performed_on ON exercises(performed_on)")
     }
 
     private fun createFoodTables(db: SQLiteDatabase) {

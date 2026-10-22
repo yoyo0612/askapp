@@ -83,6 +83,11 @@ fun GoalScreen(viewModel: GoalViewModel = viewModel()) {
                     ProgressRow("炭水化物", actual.carbsG, goal.carbsG, "g")
                     ProgressRow("食物繊維", actual.fiberG, goal.fiberG, "g")
                     ProgressRow("ナトリウム", actual.sodiumMg, goal.sodiumMg, "mg")
+                    Text(
+                        "運動による消費: ${state.burnedKcal.oneDecimal()} kcal",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

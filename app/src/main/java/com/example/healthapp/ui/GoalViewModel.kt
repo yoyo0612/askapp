@@ -7,6 +7,7 @@ import com.example.healthapp.HealthApp
 import com.example.healthapp.data.BodyRepository
 import com.example.healthapp.data.DailyTotal
 import com.example.healthapp.data.DaySummary
+import com.example.healthapp.data.ExerciseRepository
 import com.example.healthapp.data.MealRepository
 import com.example.healthapp.nutrition.Nutrients
 import java.time.LocalDate
@@ -30,6 +31,8 @@ data class GoalUiState(
     val fields: List<String> = List(GOAL_LABELS.size) { "" },
     val goal: Nutrients = Nutrients.ZERO,
     val today: DaySummary? = null,
+    /** 今日の運動による消費カロリー合計。 */
+    val burnedKcal: Double = 0.0,
     /** 直近7日のうち記録のある日（新しい順）。 */
     val recent: List<DailyTotal> = emptyList(),
     val message: String? = null,
@@ -40,6 +43,7 @@ class GoalViewModel(application: Application) : AndroidViewModel(application) {
     private val database = (application as HealthApp).database
     private val bodyRepository = BodyRepository(database)
     private val mealRepository = MealRepository(database)
+    private val exerciseRepository = ExerciseRepository(database)
 
     private val _state = MutableStateFlow(GoalUiState())
     val state: StateFlow<GoalUiState> = _state.asStateFlow()
@@ -53,12 +57,14 @@ class GoalViewModel(application: Application) : AndroidViewModel(application) {
             val goal = bodyRepository.getGoal()
             val today = LocalDate.now()
             val summary = mealRepository.daySummary(today)
+            val burned = exerciseRepository.listFor(today).sumOf { it.kcal }
             val recent = mealRepository.dailyTotals(today.minusDays(6), today)
             _state.update {
                 it.copy(
                     fields = goal.toList().map { value -> value.plainText() },
                     goal = goal,
                     today = summary,
+                    burnedKcal = burned,
                     recent = recent.asReversed(),
                 )
             }

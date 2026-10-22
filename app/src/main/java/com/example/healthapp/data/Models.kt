@@ -42,3 +42,12 @@ data class DaySummary(
 data class DailyTotal(val date: LocalDate, val total: Nutrients)
 
 data class WeightEntry(val date: LocalDate, val kg: Double)
+
+/** 運動記録。kcal は記録時点の体重で計算した消費量。id が 0 の場合は未保存。 */
+data class ExerciseEntry(
+    val id: Long,
+    val date: LocalDate,
+    val name: String,
+    val minutes: Double,
+    val kcal: Double,
+)

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -28,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.healthapp.ui.ExerciseScreen
 import com.example.healthapp.ui.FoodScreen
 import com.example.healthapp.ui.GoalScreen
 import com.example.healthapp.ui.MealScreen
@@ -50,6 +52,7 @@ class MainActivity : ComponentActivity() {
 private enum class Tab(val label: String, val icon: ImageVector) {
     RECORD("記録", Icons.Filled.DateRange),
     FOODS("食品", Icons.AutoMirrored.Filled.List),
+    EXERCISE("運動", Icons.Filled.Favorite),
     WEIGHT("体重", Icons.Filled.Person),
     GOAL("目標", Icons.Filled.Star),
 }
@@ -76,6 +79,7 @@ private fun AppRoot() {
             when (tab) {
                 Tab.RECORD -> MealScreen()
                 Tab.FOODS -> FoodScreen()
+                Tab.EXERCISE -> ExerciseScreen()
                 Tab.WEIGHT -> WeightScreen()
                 Tab.GOAL -> GoalScreen()
             }

@@ -44,6 +44,16 @@ class BodyRepository(private val database: HealthDatabase) {
         }
     }
 
+    /** 指定日以前で最も新しい体重。記録がなければ null。 */
+    suspend fun weightOn(date: LocalDate): Double? = withContext(Dispatchers.IO) {
+        database.readableDatabase.rawQuery(
+            "SELECT kg FROM weights WHERE measured_on <= ? ORDER BY measured_on DESC LIMIT 1",
+            arrayOf(date.toString()),
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getDouble(0) else null
+        }
+    }
+
     /** 直近の記録を日付の昇順で返す。 */
     suspend fun listWeights(limit: Int = 60): List<WeightEntry> = withContext(Dispatchers.IO) {
         database.readableDatabase.rawQuery(
