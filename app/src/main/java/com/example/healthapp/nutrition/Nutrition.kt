@@ -15,7 +15,8 @@ data class Nutrients(
     }
 }
 
-private fun Double.round1(): Double = (this * 10).roundToLong() / 10.0
+/** 小数第1位に丸める。 */
+fun Double.round1(): Double = (this * 10).roundToLong() / 10.0
 
 /** 100gあたりの栄養素から、指定グラム数分の栄養素を求める。 */
 fun Nutrients.forGrams(grams: Double): Nutrients {

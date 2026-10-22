@@ -16,30 +16,50 @@
 
 動作確認環境: Android Gradle Plugin 8.13.1 / Kotlin 2.2.21 / Gradle 9.3.1 / minSdk 26 / targetSdk 36
 
-### 画面の使い方
+### 機能一覧
+
+| タブ | 機能 |
+| --- | --- |
+| 記録 | 食事の記録（日付・朝昼夕間食・食品・量）、記録済みの食事の編集・削除、食事ごとと1日の合計の栄養素 |
+| 食品 | 食品の追加・編集・削除、名前での検索（100gあたりの栄養素） |
+| 体重 | 日付ごとの体重記録（同じ日は上書き）、削除、推移グラフ、最初の記録からの増減 |
+| 目標 | 1日あたりの目標値の設定、今日の達成率（バー表示）、直近7日間の記録 |
+
+- 食品の削除は、食事の記録で使われている場合はできません（記録を先に消す必要があります）。
+- 目標値の既定値は 2000kcal / たんぱく質60g / 脂質60g / 炭水化物300g / 食物繊維20g / ナトリウム2300mg です。
+
+### 画面の使い方（記録）
 
 1. 日付・食事の種類（朝食・昼食・夕食・間食）を選ぶ
 2. 食品と量（g）を入力して「リストに追加」を繰り返す
 3. 「この食事を記録する」を押すと、食事ごとと1日の合計の栄養素が表示される
+4. 記録済みの食事の「編集」で内容を変更、「削除」で取り消せる
 
 ### 構成（`app/src/main/java/com/example/healthapp/`）
 
 ```
-MainActivity.kt        画面の起動
+HealthApp.kt           Application（DB 接続を共有）
+MainActivity.kt        下部タブで4画面を切り替え
 nutrition/Nutrition.kt 栄養計算（100g換算・合計）の純粋関数
-data/HealthDatabase.kt SQLite のスキーマと初期データ投入（SQLiteOpenHelper）
-data/MealRepository.kt 食事の保存・日別集計
+nutrition/Progress.kt  達成率・体重増減の計算
+data/HealthDatabase.kt SQLite のスキーマ（version 2）と初期データ投入
+data/FoodRepository.kt 食品の保存・更新・削除
+data/MealRepository.kt 食事の保存・更新・削除・日別集計
+data/BodyRepository.kt 目標値・体重の保存
 data/SeedFoods.kt      初期登録の食品データ（100gあたり）
 data/Models.kt         データクラス
-ui/MealViewModel.kt    画面の状態管理
-ui/MealScreen.kt       Compose の画面
+ui/MealScreen.kt, MealViewModel.kt   記録タブ
+ui/FoodScreen.kt, FoodViewModel.kt   食品タブ
+ui/WeightScreen.kt, WeightViewModel.kt 体重タブ
+ui/GoalScreen.kt, GoalViewModel.kt   目標タブ
+ui/Common.kt           日付の移動ボタンなど共通部品
 ui/Format.kt           表示用の整形
 ```
 
 ### 注意
 
 - 初期食品の栄養値は日本食品標準成分表を参考にした**概算値**です。正確な値が必要な場合は公式の成分表で確認してください。
-- 食品の追加は現時点では画面からできず、`SeedFoods.kt` を編集して追加します（DB は初回作成時にのみ投入されるため、追加後はアプリのデータを消去して再インストールが必要です）。
+- DB は version 2 です。v1 からは自動で移行されます（目標値・体重の表を追加）。
 
 ## Python 版（参考実装）
 

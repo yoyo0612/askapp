@@ -5,13 +5,25 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", null, 1) {
+class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", null, 2) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
     }
 
     override fun onCreate(db: SQLiteDatabase) {
+        createFoodTables(db)
+        createMealTables(db)
+        createBodyTables(db)
+        SEED_FOODS.forEach { food -> db.insertOrThrow("foods", null, food.toContentValues()) }
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        // v1 → v2: 目標値と体重の表を追加
+        if (oldVersion < 2) createBodyTables(db)
+    }
+
+    private fun createFoodTables(db: SQLiteDatabase) {
         db.execSQL(
             """
             CREATE TABLE foods (
@@ -26,6 +38,9 @@ class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", 
             )
             """.trimIndent(),
         )
+    }
+
+    private fun createMealTables(db: SQLiteDatabase) {
         db.execSQL(
             """
             CREATE TABLE meals (
@@ -35,6 +50,7 @@ class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", 
             )
             """.trimIndent(),
         )
+        db.execSQL("CREATE INDEX idx_meals_eaten_on ON meals(eaten_on)")
         db.execSQL(
             """
             CREATE TABLE meal_items (
@@ -45,23 +61,34 @@ class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", 
             )
             """.trimIndent(),
         )
-        db.execSQL("CREATE INDEX idx_meals_eaten_on ON meals(eaten_on)")
-
-        SEED_FOODS.forEach { food ->
-            val values = ContentValues().apply {
-                put("name", food.name)
-                put("kcal", food.per100g.kcal)
-                put("protein_g", food.per100g.proteinG)
-                put("fat_g", food.per100g.fatG)
-                put("carbs_g", food.per100g.carbsG)
-                put("fiber_g", food.per100g.fiberG)
-                put("sodium_mg", food.per100g.sodiumMg)
-            }
-            db.insertOrThrow("foods", null, values)
-        }
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // バージョン1のみのため、マイグレーションは未実装
+    private fun createBodyTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS goals (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                kcal REAL NOT NULL,
+                protein_g REAL NOT NULL,
+                fat_g REAL NOT NULL,
+                carbs_g REAL NOT NULL,
+                fiber_g REAL NOT NULL,
+                sodium_mg REAL NOT NULL
+            )
+            """.trimIndent(),
+        )
+        // 既定値は一般的な成人の目安。画面から変更できる。
+        db.execSQL(
+            "INSERT OR IGNORE INTO goals (id, kcal, protein_g, fat_g, carbs_g, fiber_g, sodium_mg)" +
+                " VALUES (1, 2000, 60, 60, 300, 20, 2300)",
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS weights (
+                measured_on TEXT PRIMARY KEY,
+                kg REAL NOT NULL
+            )
+            """.trimIndent(),
+        )
     }
 }

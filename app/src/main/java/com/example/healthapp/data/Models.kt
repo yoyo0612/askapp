@@ -14,7 +14,7 @@ enum class MealType(val label: String, val dbValue: String) {
     }
 }
 
-/** 食品マスタ。栄養素は100gあたり。 */
+/** 食品マスタ。栄養素は100gあたり。id が 0 の場合は未保存。 */
 data class Food(val id: Long, val name: String, val per100g: Nutrients)
 
 data class MealItemInput(val foodId: Long, val grams: Double)
@@ -38,3 +38,7 @@ data class DaySummary(
     val meals: List<MealDetail>,
     val total: Nutrients,
 )
+
+data class DailyTotal(val date: LocalDate, val total: Nutrients)
+
+data class WeightEntry(val date: LocalDate, val kg: Double)
