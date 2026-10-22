@@ -10,13 +10,21 @@ class FoodRepository(private val database: HealthDatabase) {
 
     suspend fun list(): List<Food> = withContext(Dispatchers.IO) {
         database.readableDatabase.rawQuery(
-            "SELECT id, name, kcal, protein_g, fat_g, carbs_g, fiber_g, sodium_mg FROM foods ORDER BY name",
+            "SELECT $FOOD_COLUMNS FROM foods ORDER BY name",
             null,
         ).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) add(cursor.toFood())
             }
         }
+    }
+
+    /** バーコードが登録済みの食品を返す。 */
+    suspend fun findByBarcode(barcode: String): Food? = withContext(Dispatchers.IO) {
+        database.readableDatabase.rawQuery(
+            "SELECT $FOOD_COLUMNS FROM foods WHERE barcode = ? LIMIT 1",
+            arrayOf(barcode),
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.toFood() else null }
     }
 
     /** 食品を追加し、採番された id を返す。同名があると例外になる。 */
@@ -43,6 +51,8 @@ class FoodRepository(private val database: HealthDatabase) {
     }
 }
 
+private const val FOOD_COLUMNS = "id, name, kcal, protein_g, fat_g, carbs_g, fiber_g, sodium_mg, barcode"
+
 internal fun Food.toContentValues(): ContentValues = ContentValues().apply {
     put("name", name)
     put("kcal", per100g.kcal)
@@ -51,6 +61,7 @@ internal fun Food.toContentValues(): ContentValues = ContentValues().apply {
     put("carbs_g", per100g.carbsG)
     put("fiber_g", per100g.fiberG)
     put("sodium_mg", per100g.sodiumMg)
+    if (barcode == null) putNull("barcode") else put("barcode", barcode)
 }
 
 private fun Cursor.toFood(): Food = Food(
@@ -64,4 +75,5 @@ private fun Cursor.toFood(): Food = Food(
         fiberG = getDouble(6),
         sodiumMg = getDouble(7),
     ),
+    barcode = getString(8),
 )

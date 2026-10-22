@@ -1,5 +1,6 @@
 package com.example.healthapp.ui
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,13 +14,17 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,10 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.healthapp.data.Food
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
 @Composable
 fun FoodScreen(viewModel: FoodViewModel = viewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         floatingActionButton = {
@@ -58,6 +65,36 @@ fun FoodScreen(viewModel: FoodViewModel = viewModel()) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = state.barcodeInput,
+                    onValueChange = viewModel::setBarcodeInput,
+                    label = { Text("バーコード番号") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+                Button(
+                    onClick = { viewModel.lookupBarcode(state.barcodeInput) },
+                    enabled = !state.loading,
+                ) {
+                    Text("検索")
+                }
+            }
+            OutlinedButton(
+                onClick = { startBarcodeScan(context, viewModel) },
+                enabled = !state.loading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("カメラでバーコードを読み取る")
+            }
+            if (state.loading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
 
             state.message?.let {
                 Text(it, color = MaterialTheme.colorScheme.primary)
@@ -88,6 +125,18 @@ fun FoodScreen(viewModel: FoodViewModel = viewModel()) {
             onDismiss = viewModel::closeForm,
         )
     }
+}
+
+/** カメラでバーコードを読み取り、結果を食品の検索に渡す。キャンセル時は何もしない。 */
+private fun startBarcodeScan(context: Context, viewModel: FoodViewModel) {
+    GmsBarcodeScanning.getClient(context)
+        .startScan()
+        .addOnSuccessListener { barcode ->
+            barcode.rawValue?.let(viewModel::lookupBarcode)
+        }
+        .addOnFailureListener {
+            viewModel.showMessage("バーコードを読み取れませんでした")
+        }
 }
 
 @Composable
@@ -124,6 +173,9 @@ private fun FoodFormDialog(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text("すべて100gあたりの値", style = MaterialTheme.typography.bodySmall)
+                form.barcode?.let {
+                    Text("バーコード: $it", style = MaterialTheme.typography.bodySmall)
+                }
                 OutlinedTextField(
                     value = form.name,
                     onValueChange = { onChange(form.copy(name = it)) },

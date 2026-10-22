@@ -5,7 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", null, 3) {
+class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", null, 4) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -24,6 +24,18 @@ class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", 
         if (oldVersion < 2) createBodyTables(db)
         // v2 → v3: 運動記録の表を追加
         if (oldVersion < 3) createExerciseTables(db)
+        // v3 → v4: 食品にバーコードを追加
+        if (oldVersion < 4) addBarcodeColumn(db)
+    }
+
+    private fun addBarcodeColumn(db: SQLiteDatabase) {
+        db.execSQL("ALTER TABLE foods ADD COLUMN barcode TEXT")
+        createBarcodeIndex(db)
+    }
+
+    /** 同じバーコードの食品が二重に登録されないよう、NULL 以外は一意にする。 */
+    private fun createBarcodeIndex(db: SQLiteDatabase) {
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_foods_barcode ON foods(barcode) WHERE barcode IS NOT NULL")
     }
 
     private fun createExerciseTables(db: SQLiteDatabase) {
@@ -52,10 +64,12 @@ class HealthDatabase(context: Context) : SQLiteOpenHelper(context, "health.db", 
                 fat_g REAL NOT NULL,
                 carbs_g REAL NOT NULL,
                 fiber_g REAL NOT NULL,
-                sodium_mg REAL NOT NULL
+                sodium_mg REAL NOT NULL,
+                barcode TEXT
             )
             """.trimIndent(),
         )
+        createBarcodeIndex(db)
     }
 
     private fun createMealTables(db: SQLiteDatabase) {

@@ -14,8 +14,13 @@ enum class MealType(val label: String, val dbValue: String) {
     }
 }
 
-/** 食品マスタ。栄養素は100gあたり。id が 0 の場合は未保存。 */
-data class Food(val id: Long, val name: String, val per100g: Nutrients)
+/** 食品マスタ。栄養素は100gあたり。id が 0 の場合は未保存。barcode はバーコード（JAN など）で、手入力の食品は null。 */
+data class Food(
+    val id: Long,
+    val name: String,
+    val per100g: Nutrients,
+    val barcode: String? = null,
+)
 
 data class MealItemInput(val foodId: Long, val grams: Double)
 
